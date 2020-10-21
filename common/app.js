@@ -18,43 +18,26 @@ function getArgs() {
 	}
 	return args; // Return the object
 }
+
 /**
- * 时间戳转换成时间格式  03月21 12:32
- * @param {Object} time
+ * 时间格式化---自定义格式
  */
-function formatDate(time) {
-	if(!time) return '';
-	var now = new Date(parseInt(time));
-	var year = now.getFullYear();
-	var month = now.getMonth() + 1;
-	//var m = month < 10 ? ('0' + month) : month;
-	var date = now.getDate();
-	//var d = date < 10 ? ('0' + date) : date;
-	var hour = now.getHours();
-	//var h = hour < 10 ? ('0' + hour) : hour;
-	var minute = now.getMinutes();
-	var min = minute < 10 ? ('0' + minute) : minute;
-	var second = now.getSeconds();
-	//return year + "-" + m + "-" + d + " " + h + ":" + min; //+":"+second
-	return month + "月" + date + "日  " + hour + ":" + min;
-
-}
-
-//时间转化成年/月/日/时/分/秒格式
-function tiemFormat(time) {
-	if(time && time != 0) {
-		var date = new Date(time * 1000);
-		var year = date.getFullYear();
-		var month = date.getMonth() + 1;
-		var day = date.getDate();
-		var hour = (date.getHours() > 9 ? date.getHours() : "0" + date.getHours());
-		var minute = (date.getMinutes() > 9 ? date.getMinutes() : "0" + date.getMinutes());
-		var second = (date.getSeconds() > 9 ? date.getSeconds() : "0" + date.getSeconds());
-		month = month < 10 ? '0' + month : month;
-		day = day < 10 ? '0' + day : day;
-		return year + "-" + month + "-" + day + "  " + hour + ":" + minute
-	} else {
-		return "无"
+function timeFormat(date, fmt = 'yyyy-MM-dd') {
+	date = new Date(date);
+	let o = {
+		'M+': date.getMonth() + 1,
+		'd+': date.getDate(),
+		'h+': date.getHours(),
+		'm+': date.getMinutes(),
+		's+': date.getSeconds(),
+		'q+': Math.floor((date.getMonth() + 3) / 3),
+		'S': date.getMilliseconds()
+	};
+	if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (date.getFullYear() + '').substr(4 - RegExp.$1.length));
+	for (let k in o) {
+		if (new RegExp('(' + k + ')').test(fmt)) {
+			fmt = fmt.replace(RegExp.$1, (RegExp.$1.length === 1) ? (o[k]) : (('00' + o[k]).substr(('' + o[k]).length)));
+		}
 	}
-
+	return fmt;
 }
