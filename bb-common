@@ -1,0 +1,743 @@
+/**
+ * Created by Hevi on 2017.08.24.
+ * 压缩本文件，在当前文件夹打开命令行并输入minify common.js
+ */
+
+(function(root, factory) {
+	root.Common = factory();
+})(this, function() {
+	var _hz_data_url = 'https://app.bb-esports.com'; //杭州数据请求地址
+	var _sz_data_url = 'https://szapp.bb-esports.com'; //深圳数据请求地址
+	var _local_data_url = 'http://192.168.5.105'; //本地数据请求地址
+	var _hz_wx_url = 'https://platform.bb-esports.com'; //杭州微信签名请求地址
+	var _sz_wx_url = 'https://szplatform.bb-esports.com'; //深圳微信签名请求地址
+	var _local_wx_url = 'http://192.168.5.102:8880'; //本地的无法调用微信的接口（因为本地访问没有域名，而微信要求设置JS安全域名）
+
+	var ua = navigator.userAgent;
+	var isWX = ua.match(/MicroMessenger\/([\d\.]+)/),
+		isQQ = ua.match(/QQ\/([\d\.]+)/),
+		isWB = ua.match(/WeiBo/i),
+		isQZ = ua.indexOf("Qzone/") !== -1;
+	var scripts = {
+		qq: '//open.mobile.qq.com/sdk/qqapi.js?_bid=152',
+		qz: '//qzonestyle.gtimg.cn/qzone/phone/m/v4/widget/mobile/jsbridge.js?_bid=339',
+		wx: '//res.wx.qq.com/open/js/jweixin-1.2.0.js',
+		wb: 'http://tjs.sjs.sinajs.cn/open/thirdpart/js/jsapi/mobile.js',
+	}
+
+	//获取微信签名的服务器地址
+	function getWXSignatureAddr() {
+		var host = window.location.host;
+		switch (host) {
+			case 'cdn1.bb-app.cn':
+			case 'sep.miwutech.com':
+			case 'cdn1.bb-esports.com':
+				return _hz_wx_url;
+			case 'sz-cdn1.bb-app.cn':
+			case 'lb1qa1sep.blemobi.com':
+			case 'szcdn1.bb-esports.com':
+				return _sz_wx_url;
+			default:
+				return _local_wx_url;
+		}
+	}
+
+	function getParam(params) {
+		if (!params) {
+			return null;
+		}
+		var arr = [];
+		for (var k in params) {
+			arr.push(k + '=' + params[k]);
+		}
+		return arr.join('&');
+	}
+
+	function require(url, onload) {
+		var doc = document;
+		var head = doc.head || (doc.getElementsByTagName("head")[0] || doc.documentElement);
+		var node = doc.createElement("script");
+		node.onload = onload;
+		node.onerror = function() {};
+		node.src = url[0];
+		head.appendChild(node);
+	}
+
+	function shareQQ(options) {
+		var info = {
+			title: options.title,
+			desc: options.desc,
+			share_url: options.url,
+			image_url: options.img_url || options.default_img_url
+		};
+
+		function doQQShare() {
+			try {
+				window.mqq.data.setShareInfo(info, function(ret) {});
+
+				if (options.wxReady && typeof options.wxReady == 'function') {
+					options.wxReady();
+				}
+			} catch (e) {
+				console.error(e)
+			}
+		}
+
+		if (window.mqq) {
+			doQQShare();
+		} else {
+			require([scripts.qq], function() {
+				doQQShare();
+			});
+		}
+	}
+
+	function shareQZ(options) {
+		var info = {
+			title: options.title,
+			summary: options.desc,
+			pic: options.img_url || options.default_img_url,
+			url: options.url
+		};
+
+		function doQZShare() {
+			if (QZAppExternal && QZAppExternal.setShare) {
+				var imageArr = [],
+					titleArr = [],
+					summaryArr = [],
+					shareURLArr = [];
+				for (var i = 0; i < 5; i++) {
+					imageArr.push(info.pic);
+					shareURLArr.push(info.url);
+					if (i === 4 && info.swapTitle) {
+						titleArr.push(info.summary);
+						summaryArr.push(info.title);
+					} else {
+						titleArr.push(info.title);
+						summaryArr.push(info.summary);
+					}
+				}
+				QZAppExternal.setShare(function(info) {}, {
+					"type": "share",
+					"image": imageArr,
+					"title": titleArr,
+					"summary": summaryArr,
+					"shareURL": shareURLArr
+				});
+
+				if (options.wxReady && typeof options.wxReady == 'function') {
+					options.wxReady();
+				}
+			}
+		}
+		if (window.QZAppExternal) {
+			doQZShare();
+		} else {
+			require([scripts.qz], function() {
+				doQZShare();
+			});
+		}
+	}
+
+	function shareWX(options, obj) {
+		console.log('进入微信，获取ops', options)
+
+		function doWXshare() {
+			obj.Request('/wx/signature', {
+				domain: getWXSignatureAddr(),
+				params: {
+					"url": encodeURIComponent(location.href.split('#')[0])
+				},
+				success: function(data) {
+					console.log('进入微信回调，获取ops', options)
+					wx.config({
+						debug: options.openDebug, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+						appId: 'wxf767737f92fd7c6d', // 必填，公众号的唯一标识
+						timestamp: data.extData.timestamp, // 必填，生成签名的时间戳
+						nonceStr: data.extData.noncestr, // 必填，生成签名的随机串
+						signature: data.extData.signature, // 必填，签名，见附录1
+						jsApiList: [
+							'onMenuShareTimeline',
+							'onMenuShareAppMessage',
+							'onMenuShareQQ',
+							'onMenuShareQZone',
+						], // 必填，需要使用的JS接口列表，所有JS接口列表见附录2
+					});
+
+					wx.error(function(res) {
+						console.log("微信接口加载失败：", JSON.stringify(res));
+					});
+
+					wx.ready(function() {
+						console.log('进入微信ready，获取ops', options)
+						wx.onMenuShareTimeline({
+							title: options.title, // 分享标题
+							link: options.url, // 分享链接，该链接域名或路径必须与当前页面对应的公众号JS安全域名一致
+							imgUrl: options.img_url || options.default_img_url, // 分享图标
+							success: function() {
+								// 用户确认分享后执行的回调函数
+							},
+							cancel: function() {
+								// 用户取消分享后执行的回调函数
+							}
+						});
+
+						wx.onMenuShareAppMessage({
+							title: options.title, // 分享标题
+							desc: options.desc, // 分享描述
+							link: options.url, // 分享链接，该链接域名或路径必须与当前页面对应的公众号JS安全域名一致
+							imgUrl: options.img_url || options.default_img_url, // 分享图标
+							type: '', // 分享类型,music、video或link，不填默认为link
+							dataUrl: '', // 如果type是music或video，则要提供数据链接，默认为空
+							success: function() {
+								// 用户确认分享后执行的回调函数
+								// alert("onMenuShareAppMessage on")
+							},
+							cancel: function() {
+								// 用户取消分享后执行的回调函数
+								// alert("onMenuShareAppMessage off")
+							}
+						});
+
+						wx.onMenuShareQQ({
+							title: options.title, // 分享标题
+							desc: options.desc, // 分享描述
+							link: options.url, // 分享链接
+							imgUrl: options.img_url || options.default_img_url, // 分享图标
+							success: function() {
+								// 用户确认分享后执行的回调函数
+								// alert("onMenuShareQQ on")
+							},
+							cancel: function() {
+								// 用户取消分享后执行的回调函数
+								// alert("onMenuShareQQ off")
+							}
+						});
+
+						wx.onMenuShareQZone({
+							title: options.title, // 分享标题
+							desc: options.desc, // 分享描述
+							link: options.url, // 分享链接
+							imgUrl: options.img_url || options.default_img_url, // 分享图标
+							success: function() {
+								// 用户确认分享后执行的回调函数
+							},
+							cancel: function() {
+								// 用户取消分享后执行的回调函数
+							}
+						});
+
+						if (options.wxReady && typeof options.wxReady == 'function') {
+							options.wxReady();
+						}
+					});
+				},
+				error: function(xhr, status) {
+					alert("error:" + '数据获取失败！')
+					console.log("error=", status)
+				}
+			});
+		}
+
+		if (window.wx) {
+			doWXshare();
+		} else {
+			require([scripts.wx], function() {
+				doWXshare();
+			})
+		}
+
+	}
+
+	function shareWB(options, obj) {
+		function doWBshare() {
+			obj.Request('/wb/signature', {
+				domain: getWXSignatureAddr(),
+				success: function(data) {
+					window.WeiboJS.init({
+						appkey: '552255104',
+						debug: options.openDebug,
+						timestamp: data.extData.timestamp,
+						noncestr: data.extData.noncestr,
+						signature: data.extData.signature,
+						scope: ['checkAvailability', 'setSharingContent', 'openImage'],
+					}, function(ret) {
+						// alert('ret', JSON.stringify(ret))
+						WeiboJS.invoke("checkAvailability", {
+								api_list: ['setSharingContent', 'openImage']
+							},
+							function(data) {
+								// alert("data:" + JSON.stringify(data))
+								console.log("data", data)
+							});
+						WeiboJS.invoke("setSharingContent", {
+							"icon": options.img_url || options.default_img_url,
+							"title": options.title,
+							"desc": options.desc
+						}, function(params, success, code) {
+							// if (success) {
+							//     // document.write('网络状态是' + params.network_type);
+							// } else {
+							//     if (code == WeiboJS.STATUS_CODE.NO_RESULT) {
+							//         // do something.
+							//     }
+							// }
+						});
+
+						if (options.wxReady && typeof options.wxReady == 'function') {
+							options.wxReady();
+						}
+					});
+				}
+			});
+		}
+
+		if (window.WeiboJS) {
+			doWBshare();
+		} else {
+			require([scripts.wb], function() {
+				doWBshare();
+			})
+		}
+	}
+
+	return {
+		//获取监管的服务器地址
+		GetPlatformAddr: function() {
+			return getWXSignatureAddr();
+		},
+		//查看大图的接口(目前只支持微信和QQ)
+		//@images 需要查看的所有图片的URL的数组
+		InitpreviewImages: function(images) {
+			var res = {};
+			res.pushImage = function(imgUrl) {
+				images.push(imgUrl)
+			}
+
+			if (isWX) {
+				//@index 当前要显示的图片的URL
+				res.showImage = function(index) {
+					var current = images[index];
+					wx.previewImage({
+						current: current, // 当前显示图片的http链接
+						urls: images // 需要预览的图片http链接列表
+					});
+				}
+			} else if (isQQ) {
+				//@index 当前查看的第几张图片
+				res.showImage = function(index) {
+					window.mqq.media.showPicture({
+						imageIDs: images,
+						index: index
+					}, function(ret) {
+						console.log("ret", ret)
+					});
+				}
+			} else if (isWB) {
+				res.showImage = function(index) {
+					var current = images[index];
+					WeiboJS.invoke("openImage", {
+						"url": current,
+						"urls": images,
+					}, function(params, success, code) {});
+				}
+			} else {
+				res.showImage = function(index) {};
+			}
+
+			return res;
+		},
+
+		//图片懒加载
+		/*
+		 * @ops = {
+			offset: 0, //离可视区域多少像素的图片可以被加载
+			throttle: 0 //图片延迟多少毫秒加载	
+		 }
+		 * 使用：<img src="img/blank.gif" alt="Photo" data-echo="img/photo.jpg">
+		 * src可以是一张很小的图，如转菊花图，data-echo就是要查看的图片
+		 */
+		ImageLazyLoading: function(ops) {
+			var options = ops || {
+				offset: 0,
+				throttle: 0
+			}
+			if (Echo) {
+				Echo.init(options);
+				return;
+			}
+
+			var script = document.createElement('script');
+			script.src = 'https://cdn.bootcss.com/echo.js/1.7.3/echo.min.js';
+			script.onerror = function() {
+				throw new Error('echo.min.js加载失败');
+			}
+			script.onload = function() {
+				Echo.init(options);
+			}
+			document.getElementsByTagName('head')[0].appendChild(script);
+		},
+
+		//安装百度统计的代码
+		InstallBaiduStatistics: function() {
+			window._hmt = window._hmt || [];
+			var hm = document.createElement("script");
+			hm.src = "https://hm.baidu.com/hm.js?cda3aba48222a43697aeb3bc4fdebf84";
+			var s = document.getElementsByTagName("script")[0];
+			s.parentNode.insertBefore(hm, s);
+		},
+
+		//跳转到APP
+		OpenAPP: function(jumpURLCallback, shareGuide, jumpURL) {
+			jumpURL = jumpURL || {};
+			// alert(ua)
+			if (isWX || isQQ || isWB) {
+				//如果有自定义的引导图，就自己用自定义的
+				if (shareGuide) {
+					shareGuide();
+					return;
+				}
+
+				var div = document.createElement('div');
+				var event = function(e) {
+					e.preventDefault();
+				}
+				div.onclick = function() {
+					this.parentNode.removeChild(this);
+					document.body.removeEventListener('touchmove', event, false);
+				}
+				div.setAttribute('style',
+					'position: fixed;top: 0;left: 0;bottom:0;z-index: 9999999;width: 100%;height: 100%;background-color: #000;opacity: 0.8;'
+				);
+				div.innerHTML =
+					'<img src="https://cdn1.bb-app.cn/share/share_guide.png" style="width: 50%;position: fixed;right: 25px;">'
+				document.getElementsByTagName('body')[0].appendChild(div);
+				document.body.addEventListener('touchmove', event, false);
+
+				return;
+			}
+			ua = ua.toLowerCase();
+
+			var url, scend = 1500;
+			if (/android/.test(ua)) {
+				url = jumpURL.android || 'http://cdn-static.bb-esports.com/apks/latest/115.1/BB社区.apk';
+				scend = 1800;
+			} else if (/iphone|ipad|ipod/.test(ua)) {
+				url = jumpURL.ios || 'https://itunes.apple.com/us/app/id1142491576?mt=8';
+			}
+
+			if (!url) {
+				return;
+			}
+
+			var loadDateTime = new Date();
+			var to = window.setTimeout(function() {
+				var timeOutDateTime = new Date();
+				if (timeOutDateTime - loadDateTime < 5000) {
+					window.location = url; //跳转的APP下载链接						
+				} else {
+					window.close();
+				}
+			}, scend);
+
+			window.onblur = function() {
+				clearTimeout(to);
+			}
+
+			if (jumpURLCallback) {
+				jumpURLCallback();
+				return;
+			}
+
+
+			window.location = "ssosep://";
+		},
+		//获取服务器的地址
+		GetRemoteAddr: function() {
+			var host = window.location.host;
+			switch (host) {
+				case 'cdn1.bb-app.cn':
+				case 'sep.miwutech.com':
+				case 'cdn1.bb-esports.com':
+					return _hz_data_url;
+				case 'sz-cdn1.bb-app.cn':
+				case 'lb1qa1sep.blemobi.com':
+				case 'szcdn1.bb-esports.com':
+					return _sz_data_url;
+				default:
+					return _local_data_url;
+			}
+			return _local_data_url;
+		},
+
+		//获取短的数据，如12340，表示1.2万
+		GetShortNumber: function(number) {
+			var v1 = number / 100000000;
+			if (v1 >= 1) return v1.toFixed(1) + '亿';
+			var v2 = number / 10000;
+			if (v2 >= 1) return v2.toFixed(1) + '万';
+			return number;
+		},
+
+		//弹出提示窗
+		Tips: function(msg) {
+			// console.error(msg);
+			// alert(msg);
+			var div = document.createElement('dev');
+			div.style.width = '100%';
+			div.style.height = '100%';
+			div.style.position = 'fixed';
+			div.style.top = 0;
+			div.style.left = 0;
+			div.style.zIndex = 99999999;
+			div.style.backgroundColor = 'rgba(0,0,0,0.6)';
+
+			var alert = document.createElement('div');
+			alert.style.position = 'fixed';
+			alert.style.top = '50%';
+			alert.style.left = '50%';
+			alert.style.width = '80%';
+			alert.style.minHeight = '20%';
+			alert.style.border = '1px solid #ccc';
+			alert.style.backgroundColor = '#fff';
+			alert.style.borderRadius = '20px';
+			alert.style.padding = '15px';
+			alert.style.boxSizing = 'border-box';
+			alert.style.transform = 'translateX(-50%) translateY(-50%)';
+
+			var p = document.createElement('p');
+			p.style.textAlign = 'center';
+			p.style.fontSize = '16px';
+			p.style.color = '#000';
+			p.style.marginBottom = '33px';
+			p.innerHTML = msg;
+
+			var button = document.createElement('button');
+			button.style.position = 'absolute';
+			button.style.bottom = '10px';
+			button.style.left = '0';
+			button.style.width = '100%';
+			button.style.height = '20%';
+			button.style.border = 'none';
+			button.style.backgroundColor = '#fff';
+			button.style.borderRadius = '20px';
+			button.style.maxHeight = '35px';
+			button.innerHTML = '确定';
+
+			button.onclick = function() {
+				document.body.removeChild(div);
+			}
+
+			alert.appendChild(p);
+			alert.appendChild(button);
+			div.appendChild(alert);
+			document.body.appendChild(div);
+		},
+
+		//把页面上的所有http请求都转成https
+		SetHttpsMeta: function() {
+			if (window.location.host.indexOf('192.168') !== -1) return;
+			var meta = document.createElement('meta');
+			meta.setAttribute('http-equiv', 'Content-Security-Policy');
+			meta.setAttribute('content', 'upgrade-insecure-requests');
+			document.getElementsByTagName('head')[0].appendChild(meta);
+		},
+
+		//获取地址栏上的参数
+		GetQueryString: function(name) {
+			var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+			var r = window.location.search.substr(1).match(reg);
+			if (r != null) return unescape(r[2]);
+			return null;
+		},
+
+		SetDocumentRem: function(swidth, px) {
+			var win = window;
+			var remCalc = {};
+			var docEl = win.document.documentElement,
+				tid;
+
+			function refreshRem() {
+				// 获取当前窗口的宽度
+				var width = docEl.getBoundingClientRect().width;
+				// 大于640px 按640算
+				// if (width > swidth) {
+				//     width = swidth
+				// }
+				// cms做法
+				// 我们把窗口宽度固定分为 6.4份，即6.4rem
+				// 所以 1rem = 100px
+				// 640视觉中 80px*80px的按钮 转换为rem  80/100 = 0.8rem
+				// ....其他也差不多
+				// 
+				// 
+				// 对比
+				// 其实也就是计算rem的问题 视觉稿量出来的值  除64 或 100的问题
+				// 除100 总比 除64 好口算
+				// 就算用sass写个 @function px2rem代替口算
+				// .8rem 总比输入 px2rem(80)少几个字符
+				// 
+				// 
+				var rem = width / swidth * px;
+				docEl.style.fontSize = rem + "px";
+				remCalc.rem = rem;
+				//误差、兼容性处理
+				var actualSize = parseFloat(win.getComputedStyle(document.documentElement)["font-size"]);
+				if (actualSize !== rem && actualSize > 0 && Math.abs(actualSize - rem) > 1) {
+					var remScaled = rem * rem / actualSize;
+					docEl.style.fontSize = remScaled + "px"
+				}
+			}
+
+			//函数节流，避免频繁更新
+			function dbcRefresh() {
+				clearTimeout(tid);
+				tid = setTimeout(refreshRem, 100)
+			}
+
+			//窗口更新动态改变font-size
+			win.addEventListener("resize", function() {
+				dbcRefresh()
+			}, false);
+
+			//页面显示的时候再计算一次   难道切换窗口之后再切换来窗口大小会变?....
+			win.addEventListener("pageshow", function(e) {
+				if (e.persisted) {
+					dbcRefresh()
+				}
+			}, false);
+			refreshRem();
+
+			remCalc.refreshRem = refreshRem;
+			remCalc.rem2px = function(d) {
+				var val = parseFloat(d) * this.rem;
+				if (typeof d === "string" && d.match(/rem$/)) {
+					val += "px"
+				}
+				return val
+			};
+			remCalc.px2rem = function(d) {
+				var val = parseFloat(d) / this.rem;
+				if (typeof d === "string" && d.match(/px$/)) {
+					val += "rem"
+				}
+				return val
+			};
+			win.remCalc = remCalc
+		},
+
+		//向服务器发起请求
+		Request: function(url, ops) {
+			if (!ops) {
+				this.Tips('请求的参数不能为空！');
+				return;
+			}
+			var options = {
+				action: 'GET',
+				params: null,
+				domain: this.GetRemoteAddr(),
+				isAsync: true,
+				showError: true,
+				otherHeader: null,
+				contentType: 'application/json',
+				success: function() {},
+				error: function() {}
+			};
+
+			for (var key in ops || {}) {
+				//判断只有是自身的属性
+				if (ops.hasOwnProperty(key) === true) {
+					options[key] = ops[key];
+				}
+			}
+
+			var that = this;
+			var xhr = new XMLHttpRequest();
+			// xhr.responseType = 'json';
+			// xhr.withCredentials = true;
+			xhr.onreadystatechange = function() {
+				if (xhr.readyState === 4) {
+					//200 表示相应成功 304 表示缓存中存在请求的资源  
+					if ((xhr.status >= 200 && xhr.status < 300) || xhr.status == 304) {
+						var data = JSON.parse(xhr.responseText);
+						if (data.code && options.showError) {
+							that.Tips('请求出错，错误码：' + data.code);
+							return;
+						}
+						options.success(data);
+					} else {
+						options.error(xhr.status, xhr);
+						console.log('1111111111:')
+						console.log(xhr.status, xhr)
+						that.Tips('网络请求失败，稍后重试！');
+					}
+				}
+			}
+			xhr.timeout = 20000;
+			xhr.ontimeout = function() {
+				that.Tips('请求超时');
+			}
+
+			var url = options.domain + url;
+			options.params = getParam(options.params);
+
+			if (options.action.toLowerCase() === 'get' || options.action.toLowerCase() === 'delete') {
+				if (url.indexOf('?') !== -1) {
+					url += '&' + options.params;
+				} else {
+					url += '?' + options.params;
+				}
+			}
+
+			xhr.open(options.action, url, options.isAsync);
+
+			// if (options.action.toLowerCase() === 'post') {
+			//     xhr.setRequestHeader("Content-Type", 'application/x-www-form-urlencoded;charset=utf-8');
+			// }
+
+			if (options.contentType) {
+				xhr.setRequestHeader("Content-Type", options.contentType);
+			}
+
+			if (options.otherHeader) {
+				for (var key in options.otherHeader) {
+					xhr.setRequestHeader(key, options.otherHeader[key]);
+				}
+			}
+
+			xhr.send(options.params);
+		},
+
+		//设置QQ分享代码和微信分享代码
+		SetShareInfo: function(ops) {
+			if (!ops) {
+				this.Tips('请求的参数不能为空！');
+				return;
+			}
+
+			var options = {
+				title: '以此为证，冠军是他',
+				desc: '预测S7冠军，赢稀有“预言家”勋章!',
+				img_url: '',
+				default_img_url: 'http://hz1-prod-sep-persistence.oss-cn-hangzhou.aliyuncs.com/share/title.jpg',
+				url: ops.url != '' ? ops.url : location.href,
+				link: '',
+				descContent: '',
+				openDebug: false, //是否开启调试模式，默认是false
+				wxReady: null
+			};
+
+			for (var key in ops || {}) {
+				//判断只有是自身的属性
+				if (ops.hasOwnProperty(key) === true && ops[key]) {
+					options[key] = ops[key];
+				}
+			}
+
+			isQQ && shareQQ(options);
+			isWX && shareWX(options, this);
+			isQZ && shareQZ(options);
+			isWB && shareWB(options, this);
+		},
+	}
+});
