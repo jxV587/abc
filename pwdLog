@@ -1,0 +1,290 @@
+<!-- 积分记录 -->
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable = 0" />
+		<script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
+		<script src="http://g.tbcdn.cn/mtb/lib-flexible/0.3.4/??flexible_css.js,flexible.js"></script>
+		<title>积分记录</title>
+		<style>
+			#app {
+				padding: 0.32rem;
+				box-sizing: border-box;
+				background-color: #F5F7F9;
+			}
+
+			#header-container {
+				height: 2.48rem;
+				display: flex;
+				align-items: center;
+				margin-bottom: 0.32rem;
+				border-radius: 0.213333rem;
+				background-color: #FFFFFF;
+			}
+
+			#header-container .line {
+				width: 0.026666rem;
+				border-left: 0.026666rem dashed #DDDDDD;
+				height: 1.066666rem;
+			}
+
+			#header-container .item {
+				flex: 1;
+				text-align: center;
+			}
+
+			.item .title {
+				font-size: 0.32rem;
+				color: #000000;
+				line-height: 0.453333rem;
+				margin-bottom: 0.106666rem;
+			}
+
+			.item .total {
+				font-size: 0.533333rem;
+				color: #000000;
+			}
+
+			#content {
+				background-color: #FFFFFF;
+				border-radius: 0.213333rem;
+				padding: 0 0.32rem;
+				box-sizing: border-box;
+			}
+
+			#content .content-item {
+				border-bottom: 0.026666rem solid rgba(221, 221, 221, 0.45);
+				padding: 0.32rem 0;
+			}
+
+			#content .content-item:last-child {
+				border-bottom: none;
+			}
+
+			.content-item .name {
+				font-size: 0.426666rem;
+				color: #333333;
+				display: flex;
+				justify-content: space-between;
+				line-height: 0.613333rem;
+			}
+
+			.content-item .time {
+				font-size: 0.32rem;
+				color: #999999;
+				line-height: 0.453333rem;
+			}
+
+			.content-item .get-count {
+				color: #02BB00;
+			}
+
+			.content-item .use-count {
+				color: #FDA30B;
+			}
+
+			#loadingMask {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+			}
+
+			#loadingMask img {
+				width: 1.6rem;
+				height: 1.6rem;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app">
+			<div id="header-container" v-if="dataObj">
+				<div class="item">
+					<div class="title">可用积分</div>
+					<div class="total" v-text="dataObj.integral"></div>
+				</div>
+				<div class="line"></div>
+				<div class="item">
+					<div class="title">已使用积分</div>
+					<div class="total" v-text="dataObj.useIntegral"></div>
+				</div>
+				<div class="line"></div>
+				<div class="item">
+					<div class="title">已过期积分</div>
+					<div class="total" v-text="dataObj.invalidIntegral"></div>
+				</div>
+			</div>
+			<div id="content" v-if="dataList2.length">
+				<div class="content-item" v-for="(item,index) in dataList2">
+					<div class="name">
+						<div v-text="item.name"></div>
+						<div :class="index%2==1?'get-count':'use-count'">{{++index}}</div>
+					</div>
+					<div class="time" v-text="item.title"></div>
+				</div>
+				<div style="font-size: 0.426666rem;color: #333333;text-align: center;line-height: 1.333333rem;" @click="loadMore">
+					{{dataList.length>=total?'没有更多数据了':'点击加载更多'}}
+				</div>
+			</div>
+			<div v-if="isShowLoading" id="loadingMask" @touchmove.prevent="touchmoveE">
+				<img src="../img/loading.gif">
+			</div>
+		</div>
+	</body>
+	<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+	<script>
+		new Vue({
+			el: '#app',
+			data: {
+				total: 0,
+				isShowLoading: false,
+				dataObj: null,
+				dataList: [],
+				dataList2: [{
+					"name": "12306",
+					"title": "159########",
+					"subTitle": "zjx_134#######"
+				}, {
+					"name": "蓝湖设计",
+					"title": "582348093@qq.com",
+					"subTitle": "zjx#134#######"
+				}, {
+					"name": "广东省公安厅交通管理局互联网",
+					"title": "421***********3578",
+					"subTitle": "zjx159194*****"
+				}, {
+					"name": "智联招聘",
+					"title": "582348093@qq.com",
+					"subTitle": "zjx134361****"
+				},{
+					"name": "51招聘",
+					"title": "159194*****",
+					"subTitle": "zjx134361..."
+				},{
+					"name": "人才热线",
+					"title": "人才",
+					"subTitle": "58QQ扫码登录"
+				},{
+					"name": "GitHub",
+					"title": "jxV587",
+					"subTitle": "qq#134361####"
+				},{
+					"name": "appID",
+					"title": "582348093@qq.com",
+					"subTitle": "Zjx#134361…"
+				},{
+					"name": "中国手机银行",
+					"title": "15919428520",
+					"subTitle": "134361"
+				},{
+					"name": "印象笔记",
+					"title": "134361...@qq.com/582348093@qq.com",
+					"subTitle": "##x134#######"
+				},{
+					"name": "火狐通行证",
+					"title": "582348093@qq.com",
+					"subTitle": "qq#134361####"
+				},{
+					"name": "百度网盘",
+					"title": "15919428520",
+					"subTitle": "zjx+134..."
+				},{
+					"name": "百度网盘",
+					"title": "直接",
+					"subTitle": "58QQ扫码登录"
+				},{
+					"name": "npm登录",
+					"title": "jxv587",
+					"subTitle": "zjx+134..."
+				}],
+				search: {
+					page: 1,
+					size: 20,
+					cardNo: 8888888888
+				}
+			},
+			mounted() {
+				this.getMemberH5Integral();
+				this.getMemberH5IntegralList();
+			},
+			methods: {
+				loadMore() {
+					if (this.dataList.length >= this.total) return;
+					this.search.page += 1;
+					this.getMemberH5IntegralList();
+				},
+				touchmoveE() {
+					return false;
+				},
+				// ------------------------------------------------------------------------------------------------------------------------
+				// 会员H5积分流水-统计
+				getMemberH5Integral() {
+					let token =
+						'eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI2MjUiLCJpYXQiOjE1NjI5ODI3MzcsInN1YiI6ImFsbCIsImlzcyI6IndldG9vbCIsImV4cCI6MTU2MzAxMTUzN30.-d0CQxhoF6Y9STQMuFJb61BNpF4NeMo1df6-6v0o7HE';
+					let requestPath = "http://192.168.0.144:18765/api/es-server/shop/member/getMemberH5Integral-count?cardNo=" +
+						"8888888888";
+					this.isShowLoading = true;
+					$.ajax({
+						url: requestPath,
+						type: "GET",
+						headers: {
+							"access-token": token
+						},
+						contentType: 'application/x-www-form-urlencoded;charset=utf-8',
+						data: null,
+						dataType: "json",
+						success: (data) => {
+							this.isShowLoading = false;
+							if (data.code == 0) {
+								console.log('getMemberH5Integral:', data);
+								this.dataObj = data.data;
+							} else {
+								alert(data.message);
+							}
+						},
+						error: function(e) {
+							this.isShowLoading = false;
+							alert('error:请求错误');
+						}
+					});
+				},
+				// 会员H5积分流水
+				getMemberH5IntegralList() {
+					let token =
+						'eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI2MjUiLCJpYXQiOjE1NjI5ODAzMjksInN1YiI6ImFsbCIsImlzcyI6IndldG9vbCIsImV4cCI6MTU2MzAwOTEyOX0.jbWhnQbDKe4ktZ1TtTHuQe3BLIKoav0N4JUSaT9-TOQ';
+					let requestPath = "http://192.168.0.144:18765/api/es-server/shop/member/getMemberH5IntegralList";
+					this.isShowLoading = true;
+					$.ajax({
+						url: requestPath,
+						type: "GET",
+						headers: {
+							"access-token": token
+						},
+						contentType: 'application/x-www-form-urlencoded;charset=utf-8',
+						data: this.search,
+						dataType: "json",
+						success: (data) => {
+							this.isShowLoading = false;
+							if (data.code == 0) {
+								this.total = data.data.total;
+								this.dataList.push(...data.data.list)
+								console.log('getMemberH5IntegralList:', data.data.list)
+							} else {
+								alert(data.message);
+							}
+						},
+						error: function(e) {
+							this.isShowLoading = false;
+							alert('error:请求错误');
+						}
+					});
+				}
+			}
+		})
+	</script>
+</html>
