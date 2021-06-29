@@ -5,6 +5,12 @@
 (function(root, factory) {
 	root.common = new factory();
 })(window, function() {
+	// 正则替换两个指定字符串之间的内容
+	this.sliceStr = function() {
+		var pattern = /(?<=\/\*contentStart\*\/)([\s\S]*)(?=\/\*contentEnd\*\/)/;
+		var str = '/*contentStart*/123阿萨法萨法暗室逢灯/*contentEnd*/';
+		console.log(pattern.test(str));
+	}
 	// 时间格式
 	this.timeFormat = function(date, fmt = 'yyyy-MM-dd') {
 		date = new Date(date);
