@@ -8,8 +8,11 @@
 	// 正则替换两个指定字符串之间的内容
 	this.sliceStr = function() {
 		var pattern = /(?<=\/\*contentStart\*\/)([\s\S]*)(?=\/\*contentEnd\*\/)/;
-		var str = '/*contentStart*/123阿萨法萨法暗室逢灯/*contentEnd*/';
-		console.log(pattern.test(str));
+		var str = '/*contentStart*/待替换内容/*contentEnd*/';
+		if(pattern.test(str)) {
+			str.replace(pattern, '替换后的内容')
+		}
+		
 	}
 	// 时间格式
 	this.timeFormat = function(date, fmt = 'yyyy-MM-dd') {
